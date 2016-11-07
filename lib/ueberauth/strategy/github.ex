@@ -159,7 +159,7 @@ defmodule Ueberauth.Strategy.Github do
     %Info{
       name: user["name"],
       nickname: user["login"],
-      email: user["email"],
+      email: user["email"] || Enum.find(user["emails"] || [], &(&1["primary"]))["email"],
       location: user["location"],
       urls: %{
         followers_url: user["followers_url"],
@@ -197,6 +197,13 @@ defmodule Ueberauth.Strategy.Github do
       { :ok, %OAuth2.Response{status_code: 401, body: _body}} ->
         set_errors!(conn, [error("token", "unauthorized")])
       { :ok, %OAuth2.Response{status_code: status_code, body: user} } when status_code in 200..399 ->
+        case OAuth2.AccessToken.get(token, "/user/emails") do
+          { :ok, %OAuth2.Response{status_code: status_code, body: emails} } when status_code in 200..399 ->
+            user = Map.put user, "emails", emails
+            put_private(conn, :github_user, user)
+          { :error, _ } -> # Continue on as before
+            put_private(conn, :github_user, user)
+        end
         put_private(conn, :github_user, user)
       { :error, %OAuth2.Error{reason: reason} } ->
         set_errors!(conn, [error("OAuth2", reason)])
