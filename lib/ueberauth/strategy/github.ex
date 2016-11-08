@@ -205,8 +205,8 @@ defmodule Ueberauth.Strategy.Github do
       { :ok, %OAuth2.Response{status_code: status_code, body: user} } when status_code in 200..399 ->
         case OAuth2.AccessToken.get(token, "/user/emails") do
           { :ok, %OAuth2.Response{status_code: status_code, body: emails} } when status_code in 200..399 ->
-            user = Map.put user, "emails", emails
-            put_private(conn, :github_user, user)
+            user_with_emails = Map.put user, "emails", emails
+            put_private(conn, :github_user, user_with_emails)
           { :error, _ } -> # Continue on as before
             put_private(conn, :github_user, user)
         end
