@@ -210,7 +210,7 @@ defmodule Ueberauth.Strategy.Github do
           { :error, _ } -> # Continue on as before
             put_private(conn, :github_user, user)
         end
-        put_private(conn, :github_user, user)
+        #put_private(conn, :github_user, user)
       { :error, %OAuth2.Error{reason: reason} } ->
         set_errors!(conn, [error("OAuth2", reason)])
     end
