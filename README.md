@@ -1,6 +1,6 @@
 # Überauth GitHub
 
-> GitHub OAuth2 strategy for Überauth.
+> GitHub OAuth2 strategy for Überauth, temporary fork for private e-mail as uid fix.
 
 ## Installation
 
