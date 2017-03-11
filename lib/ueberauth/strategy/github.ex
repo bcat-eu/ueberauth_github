@@ -57,7 +57,7 @@ defmodule Ueberauth.Strategy.Github do
           github: { Ueberauth.Strategy.Github, [uid_field: :email] }
         ]
 
-  Default is `:login`
+  Default is `:id`
 
   To set the default 'scopes' (permissions):
 
@@ -66,9 +66,9 @@ defmodule Ueberauth.Strategy.Github do
           github: { Ueberauth.Strategy.Github, [default_scope: "user,public_repo"] }
         ]
 
-  Deafult is "user,public_repo"
+  Default is "user,public_repo"
   """
-  use Ueberauth.Strategy, uid_field: :login,
+  use Ueberauth.Strategy, uid_field: :id,
                           default_scope: "user,public_repo",
                           oauth2_module: Ueberauth.Strategy.Github.OAuth
 
@@ -100,7 +100,7 @@ defmodule Ueberauth.Strategy.Github do
   Handles the callback from Github. When there is a failure from Github the failure is included in the
   `ueberauth_failure` struct. Otherwise the information returned from Github is returned in the `Ueberauth.Auth` struct.
   """
-  def handle_callback!(%Plug.Conn{ params: %{ "code" => code } } = conn) do
+  def handle_callback!(%Plug.Conn{params: %{"code" => code}} = conn) do
     module = option(conn, :oauth2_module)
     token = apply(module, :get_token!, [[code: code]])
 
@@ -126,15 +126,15 @@ defmodule Ueberauth.Strategy.Github do
   end
 
   @doc """
-  Fetches the uid field from the Github response. This defaults to the option `uid_field` which in-turn defaults to `login`
+  Fetches the uid field from the Github response. This defaults to the option `uid_field` which in-turn defaults to `id`
   """
   def uid(conn) do
-    uid_field = option(conn, :uid_field)
-    if (to_string(uid_field) == "email") do
+    uid_field = conn |> option(:uid_field) |> to_string()
+    if (uid_field == "email") do
       # private email will not be available as :email and must be fetched
       conn.private.github_user["email"] || Enum.find(conn.private.github_user["emails"] || [], &(&1["primary"]))["email"]
     else
-      conn.private.github_user[option(conn, :uid_field) |> to_string]
+      conn.private.github_user[uid_field]
     end
   end
 
@@ -142,9 +142,9 @@ defmodule Ueberauth.Strategy.Github do
   Includes the credentials from the Github response.
   """
   def credentials(conn) do
-    token = conn.private.github_token
-    scopes = (token.other_params["scope"] || "")
-    |> String.split(",")
+    token        = conn.private.github_token
+    scope_string = (token.other_params["scope"] || "")
+    scopes       = String.split(scope_string, ",")
 
     %Credentials{
       token: token.access_token,
@@ -199,24 +199,24 @@ defmodule Ueberauth.Strategy.Github do
 
   defp fetch_user(conn, token) do
     conn = put_private(conn, :github_token, token)
-    case OAuth2.AccessToken.get(token, "/user") do
-      { :ok, %OAuth2.Response{status_code: 401, body: _body}} ->
+    # Will be better with Elixir 1.3 with/else
+    case Ueberauth.Strategy.Github.OAuth.get(token, "/user") do
+      {:ok, %OAuth2.Response{status_code: 401, body: _body}} ->
         set_errors!(conn, [error("token", "unauthorized")])
-      { :ok, %OAuth2.Response{status_code: status_code, body: user} } when status_code in 200..399 ->
-        case OAuth2.AccessToken.get(token, "/user/emails") do
-          { :ok, %OAuth2.Response{status_code: status_code, body: emails} } when status_code in 200..399 ->
+      {:ok, %OAuth2.Response{status_code: status_code, body: user}} when status_code in 200..399 ->
+        case Ueberauth.Strategy.Github.OAuth.get(token, "/user/emails") do
+          {:ok, %OAuth2.Response{status_code: status_code, body: emails}} when status_code in 200..399 ->
             user_with_emails = Map.put user, "emails", emails
             put_private(conn, :github_user, user_with_emails)
-          { :error, _ } -> # Continue on as before
+          {:error, _} -> # Continue on as before
             put_private(conn, :github_user, user)
         end
-        #put_private(conn, :github_user, user)
-      { :error, %OAuth2.Error{reason: reason} } ->
+      {:error, %OAuth2.Error{reason: reason}} ->
         set_errors!(conn, [error("OAuth2", reason)])
     end
   end
 
   defp option(conn, key) do
-    Dict.get(options(conn), key, Dict.get(default_options, key))
+    Keyword.get(options(conn), key, Keyword.get(default_options(), key))
   end
 end

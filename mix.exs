@@ -1,21 +1,21 @@
 defmodule UeberauthGithub.Mixfile do
   use Mix.Project
 
-  @version "0.4.0"
+  @version "0.4.1"
 
   def project do
     [app: :ueberauth_github,
      version: @version,
      name: "Ueberauth Github",
-     package: package,
+     package: package(),
      elixir: "~> 1.3",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
      source_url: "https://github.com/ueberauth/ueberauth_github",
      homepage_url: "https://github.com/ueberauth/ueberauth_github",
-     description: description,
-     deps: deps,
-     docs: docs]
+     description: description(),
+     deps: deps(),
+     docs: docs()]
   end
 
   def application do
@@ -23,12 +23,17 @@ defmodule UeberauthGithub.Mixfile do
   end
 
   defp deps do
-    [{:ueberauth, "~> 0.4"},
-     {:oauth2, "0.6.0"},
+    [
+     {:oauth2, "~> 0.8"},
+     {:ueberauth, "~> 0.4"},
+
+     # dev/test only dependencies
+     {:credo, "~> 0.5", only: [:dev, :test]},
 
      # docs dependencies
      {:earmark, "~> 0.2", only: :dev},
-     {:ex_doc, ">= 0.0.0", only: :dev}]
+     {:ex_doc, ">= 0.0.0", only: :dev}
+    ]
   end
 
   defp docs do
